@@ -1,5 +1,6 @@
 /* 
 -- OPTIONAL: grab all sp prior to a date 
+
 SELECT 'insert @objects_to_script select ''' + name + '''' 
 FROM sys.objects 
 where [type_desc] = 'SQL_STORED_PROCEDURE' 
