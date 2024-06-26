@@ -1,0 +1,71 @@
+/* 
+-- OPTIONAL: grab all sp prior to a date 
+
+SELECT 'insert @objects_to_script select ''' + name + '''' 
+FROM sys.objects 
+where [type_desc] = 'SQL_STORED_PROCEDURE' 
+and create_date >= '2021-04-30 16:26:56.517'
+order by modify_date asc;
+
+-- WARNING: Make sure to set "Query Options"
+--			1. Uncheck Results/Text/"Include column headers in the result set
+--			2. Results/Text/"Maximum number of characters displayed in each column: 2560+
+--			3. Uncheck Execution/Advance/"Show Completion time"
+*/
+
+set nocount on;
+
+declare @objects_to_script as table(obj_name varchar(100));
+-- see OPTIONAL item above to generate this list or you can manually create it
+insert @objects_to_script select '' 
+
+declare @output table(content text); 
+
+declare @obj_execute_group varchar(100) = null
+declare @obj_to_script varchar(100) 
+
+-- Optional set execute group
+
+declare @csr_obj_to_script cursor;
+set  @csr_obj_to_script = cursor read_only for select obj_name from @objects_to_script
+open @csr_obj_to_script
+fetch next from @csr_obj_to_script into @obj_to_script
+
+	insert into @output select '-- /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////'
+
+	while @@FETCH_STATUS = 0
+	begin
+		
+
+		insert into @output select ''
+		insert into @output select 'IF EXISTS(SELECT 1 FROM sys.procedures WHERE Name = ''' + @obj_to_script + ''')'
+		insert into @output select 'BEGIN'
+		insert into @output select '	DROP PROCEDURE dbo.' + @obj_to_script
+		insert into @output select 'END'
+		insert into @output select ''
+		insert into @output select 'GO'
+
+		declare @temptext as varchar(500) 
+		set @temptext = 'dbo.' + @obj_to_script  
+ 
+		insert into @output EXEC sp_helptext @temptext;
+ 
+		if @obj_execute_group is not null or @obj_execute_group <> '' 
+		begin
+			insert into @output select ''
+			insert into @output select 'GO'
+			insert into @output select 'GRANT EXECUTE ON [' + @obj_to_script + '] TO [' + @obj_to_script + ']'
+			insert into @output select ''
+		end
+		
+		insert into @output select 'GO'
+		insert into @output select ''
+		insert into @output select '-- /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////'
+
+		fetch next from @csr_obj_to_script into @obj_to_script
+	end
+
+close @csr_obj_to_script
+deallocate @csr_obj_to_script
+
+select * from @output;
